@@ -1,12 +1,12 @@
-package Sqlite3
+package sqlite3_core
 
 import "core:c"
 import "core:os"
 
-// when os.OS == "windows" do foreign import sqlite { "Sqlite3.lib" }
+// when os.OS == "windows" do foreign import sqlite { "sqlite3.lib" }
 // do we need to import pthread and dl? 
-// when ODIN_OS == .Linux do foreign import sqlite { "Sqlite3.a", "system:pthread", "system:dl" }
-// when ODIN_OS == .Darwin do foreign import sqlite { "Sqlite3.a", "system:pthread", "system:dl" }
+// when ODIN_OS == .Linux do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
+// when ODIN_OS == .Darwin do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
 
 when ODIN_OS == .Linux do foreign import sqlite "system:libsqlite3.a"
 
@@ -15,14 +15,14 @@ foreign sqlite {
 	// TODO: utf16 versions of functions
 
 	open :: proc(filename: cstring, ppDb: ^^Sqlite3) -> Result_Code ---
-	open_v2 :: proc(filename: cstring, ppDb: ^^Sqlite3, flags: c.int, zVfs: cstring) -> Result_Code ---
+	open_v2 :: proc(filename: cstring, ppDb: ^^Sqlite3, flags: Open_Flags, zVfs: cstring) -> Result_Code ---
 
 	close :: proc(db: ^Sqlite3) -> Result_Code ---
 	close_v2 :: proc(db: ^Sqlite3) -> Result_Code ---
 
 	prepare :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Legacy_Result_Code ---
 	prepare_v2 :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
-	prepare_v3 :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, prepFlags: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
+	prepare_v3 :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, prepFlags: Prepare_Flags, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
 
 	step :: proc(stmt: ^Stmt) -> Result_Code ---
 	finalize :: proc(stmt: ^Stmt) -> Result_Code ---
@@ -51,12 +51,10 @@ foreign sqlite {
 	bind_null :: proc(stmt: ^Stmt, index: c.int) -> Result_Code ---
 	bind_int64 :: proc(stmt: ^Stmt, index: c.int, value: i64) -> Result_Code ---
 	bind_double :: proc(stmt: ^Stmt, index: c.int, value: c.double) -> Result_Code ---
-
 	bind_text :: proc(stmt: ^Stmt, index: c.int, first: ^c.char, byte_count: c.int, lifetime: uintptr) -> Result_Code --- // lifetime: proc "c" (data: rawptr),
-
 	bind_blob :: proc(stmt: ^Stmt, index: c.int, first: ^byte, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 
-	trace_v2 :: proc(db: ^Sqlite3, mask: c.int, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
+	trace_v2 :: proc(db: ^Sqlite3, mask: Trace_Flags, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
 
 	sql :: proc(stmt: ^Stmt) -> cstring ---
 	expanded_sql :: proc(stmt: ^Stmt) -> cstring ---
@@ -80,44 +78,50 @@ Datatype :: enum {
 STATIC :: uintptr(0)
 TRANSIENT :: ~uintptr(0)
 
-Trace_Flag :: enum u8 {
-	STMT    = 0x01,
-	PROFILE = 0x02,
-	ROW     = 0x04,
-	CLOSE   = 0x08,
+Trace_Flag :: enum {
+	STMT,
+	PROFILE,
+	ROW,
+	CLOSE,
 }
 
-Prepare_Flag :: enum u8 {
-	PERSISTENT = 0x01,
-	NORMALIZE  = 0x02,
-	NO_VTAB    = 0x04,
-	DONT_LOG   = 0x10,
+Trace_Flags :: bit_set[Trace_Flag]
+
+Prepare_Flag :: enum {
+	PERSISTENT,
+	NORMALIZE,
+	NO_VTAB,
+	DONT_LOG,
 }
 
-Open_Flag :: enum c.int {
-	OPEN_READONLY      = 0x0000001, // Ok for sqlite3_open_v2()
-	OPEN_READWRITE     = 0x0000002, // Ok for sqlite3_open_v2()
-	OPEN_CREATE        = 0x0000004, // Ok for sqlite3_open_v2()
-	OPEN_DELETEONCLOSE = 0x0000008, // VFS only
-	OPEN_EXCLUSIVE     = 0x0000010, // VFS only
-	OPEN_AUTOPROXY     = 0x0000020, // VFS only
-	OPEN_URI           = 0x0000040, // Ok for sqlite3_open_v2()
-	OPEN_MEMORY        = 0x0000080, // Ok for sqlite3_open_v2()
-	OPEN_MAIN_DB       = 0x0000100, // VFS only
-	OPEN_TEMP_DB       = 0x0000200, // VFS only
-	OPEN_TRANSIENT_DB  = 0x0000400, // VFS only
-	OPEN_MAIN_JOURNAL  = 0x0000800, // VFS only
-	OPEN_TEMP_JOURNAL  = 0x0001000, // VFS only
-	OPEN_SUBJOURNAL    = 0x0002000, // VFS only
-	OPEN_SUPER_JOURNAL = 0x0004000, // VFS only
-	OPEN_NOMUTEX       = 0x0008000, // Ok for sqlite3_open_v2()
-	OPEN_FULLMUTEX     = 0x0010000, // Ok for sqlite3_open_v2()
-	OPEN_SHAREDCACHE   = 0x0020000, // Ok for sqlite3_open_v2()
-	OPEN_PRIVATECACHE  = 0x0040000, // Ok for sqlite3_open_v2()
-	OPEN_WAL           = 0x0080000, // VFS only
-	OPEN_NOFOLLOW      = 0x1000000, // Ok for sqlite3_open_v2()
-	OPEN_EXRESCODE     = 0x2000000, // Extended result codes
+Prepare_Flags :: bit_set[Prepare_Flag]
+
+Open_Flag :: enum {
+	READONLY, // Ok for sqlite3_open_v2()
+	READWRITE, // Ok for sqlite3_open_v2()
+	CREATE, // Ok for sqlite3_open_v2()
+	DELETEONCLOSE, // VFS only
+	EXCLUSIVE, // VFS only
+	AUTOPROXY, // VFS only
+	URI, // Ok for sqlite3_open_v2()
+	MEMORY, // Ok for sqlite3_open_v2()
+	MAIN_DB, // VFS only
+	TEMP_DB, // VFS only
+	TRANSIENT_DB, // VFS only
+	MAIN_JOURNAL, // VFS only
+	TEMP_JOURNAL, // VFS only
+	SUBJOURNAL, // VFS only
+	SUPER_JOURNAL, // VFS only
+	NOMUTEX, // Ok for sqlite3_open_v2()
+	FULLMUTEX, // Ok for sqlite3_open_v2()
+	SHAREDCACHE, // Ok for sqlite3_open_v2()
+	PRIVATECACHE, // Ok for sqlite3_open_v2()
+	WAL, // VFS only
+	NOFOLLOW, // Ok for sqlite3_open_v2()
+	EXRESCODE, // Extended result codes
 }
+
+Open_Flags :: bit_set[Open_Flag]
 
 Stmt :: struct {}
 
