@@ -14,10 +14,17 @@ callback :: proc "c" (data: rawptr, a: c.int, b: [^]cstring, c: [^]cstring) -> R
 
 @(default_calling_convention = "c", link_prefix = "sqlite3_")
 foreign sqlite {
-	open :: proc(filename: cstring, ppDb: ^^sqlite3) -> Result_Code ---
-	close :: proc(db: ^sqlite3) -> Result_Code ---
+	// TODO: utf16 versions of functions
 
+	open :: proc(filename: cstring, ppDb: ^^sqlite3) -> Result_Code ---
+	open_v2 :: proc(filename: cstring, ppDb: ^^sqlite3, flags: c.int, zVfs: cstring) -> Result_Code ---
+
+	close :: proc(db: ^sqlite3) -> Result_Code ---
+	close_v2 :: proc(db: ^sqlite3) -> Result_Code ---
+
+	prepare :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Legacy_Result_Code ---
 	prepare_v2 :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
+	prepare_v3 :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, prepFlags: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
 
 	step :: proc(stmt: ^Stmt) -> Result_Code ---
 	finalize :: proc(stmt: ^Stmt) -> Result_Code ---
@@ -25,13 +32,13 @@ foreign sqlite {
 	last_insert_rowid :: proc(db: ^sqlite3) -> i64 ---
 
 	column_name :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
-	column_blob :: proc(stmt: ^Stmt, i_col: c.int) -> ^byte ---
-	column_text :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
+	column_type :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
 	column_bytes :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
 
+	column_blob :: proc(stmt: ^Stmt, i_col: c.int) -> ^byte ---
+	column_text :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
 	column_int :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
 	column_double :: proc(stmt: ^Stmt, i_col: c.int) -> c.double ---
-	column_type :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
 
 	errcode :: proc(db: ^sqlite3) -> c.int ---
 	extended_errcode :: proc(db: ^sqlite3) -> c.int ---
@@ -46,16 +53,11 @@ foreign sqlite {
 	bind_int64 :: proc(stmt: ^Stmt, index: c.int, value: i64) -> Result_Code ---
 	bind_double :: proc(stmt: ^Stmt, index: c.int, value: c.double) -> Result_Code ---
 
-	bind_text :: proc(stmt: ^Stmt,
-		index: c.int,
-		first: ^c.char,
-		byte_count: c.int,
-		lifetime: uintptr,
-		) -> Result_Code ---// lifetime: proc "c" (data: rawptr),
+	bind_text :: proc(stmt: ^Stmt, index: c.int, first: ^c.char, byte_count: c.int, lifetime: uintptr) -> Result_Code --- // lifetime: proc "c" (data: rawptr),
 
 	bind_blob :: proc(stmt: ^Stmt, index: c.int, first: ^byte, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 
-	trace_v2 :: proc(db: ^sqlite3, mask: Trace_Flags, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
+	trace_v2 :: proc(db: ^sqlite3, mask: c.int, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
 
 	sql :: proc(stmt: ^Stmt) -> cstring ---
 	expanded_sql :: proc(stmt: ^Stmt) -> cstring ---
@@ -70,7 +72,38 @@ Trace_Flag :: enum u8 {
 	ROW     = 0x04,
 	CLOSE   = 0x08,
 }
-Trace_Flags :: bit_set[Trace_Flag]
+
+Prepare_Flag :: enum u8 {
+	PERSISTENT = 0x01,
+	NORMALIZE  = 0x02,
+	NO_VTAB    = 0x04,
+	DONT_LOG   = 0x10,
+}
+
+Open_Flag :: enum c.int {
+	OPEN_READONLY      = 0x0000001, // Ok for sqlite3_open_v2()
+	OPEN_READWRITE     = 0x0000002, // Ok for sqlite3_open_v2()
+	OPEN_CREATE        = 0x0000004, // Ok for sqlite3_open_v2()
+	OPEN_DELETEONCLOSE = 0x0000008, // VFS only
+	OPEN_EXCLUSIVE     = 0x0000010, // VFS only
+	OPEN_AUTOPROXY     = 0x0000020, // VFS only
+	OPEN_URI           = 0x0000040, // Ok for sqlite3_open_v2()
+	OPEN_MEMORY        = 0x0000080, // Ok for sqlite3_open_v2()
+	OPEN_MAIN_DB       = 0x0000100, // VFS only
+	OPEN_TEMP_DB       = 0x0000200, // VFS only
+	OPEN_TRANSIENT_DB  = 0x0000400, // VFS only
+	OPEN_MAIN_JOURNAL  = 0x0000800, // VFS only
+	OPEN_TEMP_JOURNAL  = 0x0001000, // VFS only
+	OPEN_SUBJOURNAL    = 0x0002000, // VFS only
+	OPEN_SUPER_JOURNAL = 0x0004000, // VFS only
+	OPEN_NOMUTEX       = 0x0008000, // Ok for sqlite3_open_v2()
+	OPEN_FULLMUTEX     = 0x0010000, // Ok for sqlite3_open_v2()
+	OPEN_SHAREDCACHE   = 0x0020000, // Ok for sqlite3_open_v2()
+	OPEN_PRIVATECACHE  = 0x0040000, // Ok for sqlite3_open_v2()
+	OPEN_WAL           = 0x0080000, // VFS only
+	OPEN_NOFOLLOW      = 0x1000000, // Ok for sqlite3_open_v2()
+	OPEN_EXRESCODE     = 0x2000000, // Extended result codes
+}
 
 Stmt :: struct {}
 
@@ -158,6 +191,11 @@ sqlite3 :: struct {
 }
 
 Pgno :: struct {}
+
+Legacy_Result_Code :: enum c.int {
+	OK    = 0, /* Successful result */
+	ERROR = 1, /* Generic error */
+}
 
 Result_Code :: enum c.int {
 	OK         = 0, /* Successful result */
