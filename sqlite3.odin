@@ -1,49 +1,48 @@
-package sqlite3
+package Sqlite3
 
 import "core:c"
 import "core:os"
 
-// when os.OS == "windows" do foreign import sqlite { "sqlite3.lib" }
+// when os.OS == "windows" do foreign import sqlite { "Sqlite3.lib" }
 // do we need to import pthread and dl? 
-// when ODIN_OS == .Linux do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
-// when ODIN_OS == .Darwin do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
+// when ODIN_OS == .Linux do foreign import sqlite { "Sqlite3.a", "system:pthread", "system:dl" }
+// when ODIN_OS == .Darwin do foreign import sqlite { "Sqlite3.a", "system:pthread", "system:dl" }
 
 when ODIN_OS == .Linux do foreign import sqlite "system:libsqlite3.a"
-
-callback :: proc "c" (data: rawptr, a: c.int, b: [^]cstring, c: [^]cstring) -> Result_Code
 
 @(default_calling_convention = "c", link_prefix = "sqlite3_")
 foreign sqlite {
 	// TODO: utf16 versions of functions
 
-	open :: proc(filename: cstring, ppDb: ^^sqlite3) -> Result_Code ---
-	open_v2 :: proc(filename: cstring, ppDb: ^^sqlite3, flags: c.int, zVfs: cstring) -> Result_Code ---
+	open :: proc(filename: cstring, ppDb: ^^Sqlite3) -> Result_Code ---
+	open_v2 :: proc(filename: cstring, ppDb: ^^Sqlite3, flags: c.int, zVfs: cstring) -> Result_Code ---
 
-	close :: proc(db: ^sqlite3) -> Result_Code ---
-	close_v2 :: proc(db: ^sqlite3) -> Result_Code ---
+	close :: proc(db: ^Sqlite3) -> Result_Code ---
+	close_v2 :: proc(db: ^Sqlite3) -> Result_Code ---
 
-	prepare :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Legacy_Result_Code ---
-	prepare_v2 :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
-	prepare_v3 :: proc(db: ^sqlite3, zSql: ^c.char, nByte: c.int, prepFlags: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
+	prepare :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Legacy_Result_Code ---
+	prepare_v2 :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
+	prepare_v3 :: proc(db: ^Sqlite3, zSql: ^c.char, nByte: c.int, prepFlags: c.int, ppStmt: ^^Stmt, pzTail: ^cstring) -> Result_Code ---
 
 	step :: proc(stmt: ^Stmt) -> Result_Code ---
 	finalize :: proc(stmt: ^Stmt) -> Result_Code ---
+	exec :: proc(db: ^Sqlite3, sql: cstring, call: Exec_Callback, arg: rawptr, errmsg: [^]c.char) -> Result_Code ---
 
-	last_insert_rowid :: proc(db: ^sqlite3) -> i64 ---
+	last_insert_rowid :: proc(db: ^Sqlite3) -> i64 ---
 
 	column_name :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
-	column_type :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
+	column_type :: proc(stmt: ^Stmt, i_col: c.int) -> Datatype ---
 	column_bytes :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
 
 	column_blob :: proc(stmt: ^Stmt, i_col: c.int) -> ^byte ---
 	column_text :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
 	column_int :: proc(stmt: ^Stmt, i_col: c.int) -> c.int ---
+	column_int64 :: proc(stmt: ^Stmt, i_col: c.int) -> c.int64_t ---
 	column_double :: proc(stmt: ^Stmt, i_col: c.int) -> c.double ---
 
-	errcode :: proc(db: ^sqlite3) -> c.int ---
-	extended_errcode :: proc(db: ^sqlite3) -> c.int ---
-	errmsg :: proc(db: ^sqlite3) -> cstring ---
-	// exec :: proc(db: ^sqlite3, sql: cstring, call: callback, arg: rawptr, errmsg: [^]c.char) -> Result_Code ---;
+	errcode :: proc(db: ^Sqlite3) -> c.int ---
+	extended_errcode :: proc(db: ^Sqlite3) -> c.int ---
+	errmsg :: proc(db: ^Sqlite3) -> cstring ---
 
 	reset :: proc(stmt: ^Stmt) -> Result_Code ---
 	clear_bindings :: proc(stmt: ^Stmt) -> Result_Code ---
@@ -57,10 +56,25 @@ foreign sqlite {
 
 	bind_blob :: proc(stmt: ^Stmt, index: c.int, first: ^byte, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 
-	trace_v2 :: proc(db: ^sqlite3, mask: c.int, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
+	trace_v2 :: proc(db: ^Sqlite3, mask: c.int, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
 
 	sql :: proc(stmt: ^Stmt) -> cstring ---
 	expanded_sql :: proc(stmt: ^Stmt) -> cstring ---
+}
+
+Exec_Callback :: proc "c" (
+	data: rawptr,
+	nCol: c.int,
+	colValues: [^]cstring,
+	colNames: [^]cstring,
+) -> Result_Code
+
+Datatype :: enum {
+	INTEGER = 1,
+	FLOAT   = 2,
+	TEXT    = 3,
+	BLOB    = 4,
+	NULL    = 5,
 }
 
 STATIC :: uintptr(0)
@@ -131,7 +145,7 @@ Mutex :: struct {}
 
 Db :: struct {}
 
-sqlite3 :: struct {
+Sqlite3 :: struct {
 	pVfs:                   ^Vfs, /* OS Interface */
 	pVdbe:                  ^Vdbe, /* List of active virtual machines */
 	pDfltColl:              ^Coll_Seq, /* BINARY collseq for the database encoding */
@@ -184,49 +198,45 @@ sqlite3 :: struct {
 	nVDestroy:              c.int, /* Number of active OP_VDestroy operations */
 	nExtension:             c.int, /* Number of loaded extensions */
 	aExtension:             ^^rawptr, /* Array of shared library handles */
-	//union {
-	//void (*xLegacy)(void*,const char*),     /* Legacy trace function */
-	//c.int (*xV2)(u32,void*,void*,void*),      /* V2 Trace function */
-	//} trace,
 }
 
 Pgno :: struct {}
 
 Legacy_Result_Code :: enum c.int {
-	OK    = 0, /* Successful result */
-	ERROR = 1, /* Generic error */
+	OK    = 0, // Successful result
+	ERROR = 1, // Generic error
 }
 
 Result_Code :: enum c.int {
-	OK         = 0, /* Successful result */
-	ERROR      = 1, /* Generic error */
-	INTERNAL   = 2, /* Internal logic error in SQLite */
-	PERM       = 3, /* Access permission denied */
-	ABORT      = 4, /* Callback routine requested an abort */
-	BUSY       = 5, /* The database file is locked */
-	LOCKED     = 6, /* A table in the database is locked */
-	NOMEM      = 7, /* A malloc() failed */
-	READONLY   = 8, /* Attempt to write a readonly database */
-	INTERRUPT  = 9, /* Operation terminated by sqlite3_interrupt()*/
-	IOERR      = 10, /* Some kind of disk I/O error occurred */
-	CORRUPT    = 11, /* The database disk image is malformed */
-	NOTFOUND   = 12, /* Unknown opcode in sqlite3_file_control() */
-	FULL       = 13, /* Insertion failed because database is full */
-	CANTOPEN   = 14, /* Unable to open the database file */
-	PROTOCOL   = 15, /* Database lock protocol error */
-	EMPTY      = 16, /* Internal use only */
-	SCHEMA     = 17, /* The database schema changed */
-	TOOBIG     = 18, /* String or BLOB exceeds size limit */
-	CONSTRAINT = 19, /* Abort due to constraint violation */
-	MISMATCH   = 20, /* Data type mismatch */
-	MISUSE     = 21, /* Library used incorrectly */
-	NOLFS      = 22, /* Uses OS features not supported on host */
-	AUTH       = 23, /* Authorization denied */
-	FORMAT     = 24, /* Not used */
-	RANGE      = 25, /* 2nd parameter to sqlite3_bind out of range */
-	NOTADB     = 26, /* File opened that is not a database file */
-	NOTICE     = 27, /* Notifications from sqlite3_log() */
-	WARNING    = 28, /* Warnings from sqlite3_log() */
-	ROW        = 100, /* sqlite3_step() has another row ready */
-	DONE       = 101, /* sqlite3_step() has finished executing */
+	OK         = 0, // Successful result
+	ERROR      = 1, // Generic error
+	INTERNAL   = 2, // Internal logic error in SQLite
+	PERM       = 3, // Access permission denied
+	ABORT      = 4, // Callback routine requested an abort
+	BUSY       = 5, // The database file is locked
+	LOCKED     = 6, // A table in the database is locked
+	NOMEM      = 7, // A malloc() failed
+	READONLY   = 8, // Attempt to write a readonly database
+	INTERRUPT  = 9, // Operation terminated by sqlite3_interrupt(
+	IOERR      = 10, // Some kind of disk I/O error occurred
+	CORRUPT    = 11, // The database disk image is malformed
+	NOTFOUND   = 12, // Unknown opcode in sqlite3_file_control()
+	FULL       = 13, // Insertion failed because database is full
+	CANTOPEN   = 14, // Unable to open the database file
+	PROTOCOL   = 15, // Database lock protocol error
+	EMPTY      = 16, // Internal use only
+	SCHEMA     = 17, // The database schema changed
+	TOOBIG     = 18, // String or BLOB exceeds size limit
+	CONSTRAINT = 19, // Abort due to constraint violation
+	MISMATCH   = 20, // Data type mismatch
+	MISUSE     = 21, // Library used incorrectly
+	NOLFS      = 22, // Uses OS features not supported on host
+	AUTH       = 23, // Authorization denied
+	FORMAT     = 24, // Not used
+	RANGE      = 25, // 2nd parameter to sqlite3_bind out of range
+	NOTADB     = 26, // File opened that is not a database file
+	NOTICE     = 27, // Notifications from sqlite3_log()
+	WARNING    = 28, // Warnings from sqlite3_log()
+	ROW        = 100, // sqlite3_step() has another row ready
+	DONE       = 101, // sqlite3_step() has finished executing
 }
