@@ -19,3 +19,7 @@ open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result
 	res := b.open_v2(uri_cstr, &db._db, flags, nil)
 	return db, res
 }
+
+close :: proc(db: DB) -> Result_Code {
+	return b.close(db._db)
+}
