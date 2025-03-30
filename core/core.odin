@@ -8,7 +8,7 @@ import "core:os"
 // when ODIN_OS == .Linux do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
 // when ODIN_OS == .Darwin do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
 
-when ODIN_OS == .Linux do foreign import sqlite "system:libsqlite3.a"
+when ODIN_OS == .Linux do foreign import sqlite {"system:libsqlite3.a", "system:pthread"}
 
 @(default_calling_convention = "c", link_prefix = "sqlite3_")
 foreign sqlite {
