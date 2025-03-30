@@ -10,12 +10,12 @@ DB :: struct {
 Open_Flags :: b.Open_Flags
 Result_Code :: b.Result_Code
 
-DEFAULT_OPEN_FLAGS :: Open_Flags{.URI, .READWRITE}
+DEFAULT_OPEN_FLAGS :: Open_Flags{.URI, .READWRITE, .WAL}
 
-// TODO: return err
-open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> DB {
+@(require_results)
+open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result_Code) {
 	db := DB{}
-	uri_cstr := strings.unsafe_string_to_cstring(uri)
-	b.open_v2(uri_cstr, &db._db, flags, nil)
-	return db
+	uri_cstr := strings.clone_to_cstring(uri)
+	res := b.open_v2(uri_cstr, &db._db, flags, nil)
+	return db, res
 }
