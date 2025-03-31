@@ -62,7 +62,8 @@ query :: proc(
 			str := transmute([^]u8)strings.clone_to_cstring(_bind)
 			b.bind_text(stmt, c.int(i + 1), str, c.int(len(_bind)), b.STATIC) or_return
 		case [dynamic]u8:
-		// TODO: bind BLOB
+			first := raw_data(_bind)
+			b.bind_blob(stmt, c.int(i + 1), first, i32(len(_bind)), b.STATIC) or_return
 		case Null:
 			b.bind_null(stmt, c.int(i + 1)) or_return
 		}
@@ -87,11 +88,10 @@ query :: proc(
 				val := strings.to_string(sb)
 				append(&row, val)
 			case .BLOB:
-			// TODO: append BLOB
-
-			// size := b.column_bytes(stmt, i)
-			// bytes := b.column_blob(stmt, i)[:size]
-			// append(&row, bytes)
+				size := b.column_bytes(stmt, i)
+				ptr_byte := b.column_blob(stmt, i)
+				str := strings.string_from_ptr(ptr_byte, int(size))
+				append_elem(&row, dynu8_from_str(str))
 			case .FLOAT:
 				append(&row, f64(b.column_double(stmt, i)))
 			case .INTEGER:
@@ -109,3 +109,10 @@ query :: proc(
 }
 
 // TODO: add a polymorphic variant with Prepare_Flags argument
+
+@(private)
+dynu8_from_str :: proc(str: string) -> [dynamic]u8 {
+	sb: strings.Builder
+	strings.write_string(&sb, str)
+	return sb.buf
+}
