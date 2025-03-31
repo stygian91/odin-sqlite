@@ -36,9 +36,10 @@ close :: proc(db: DB) -> Result_Code {
 	return b.close(db._db)
 }
 
-query :: proc(
+query_with_flags :: proc(
 	db: DB,
 	sql: string,
+	flags: Prepare_Flags,
 	bindings: ..Value,
 ) -> (
 	results: [dynamic][dynamic]Value,
@@ -47,7 +48,7 @@ query :: proc(
 	cmd := transmute([^]u8)strings.clone_to_cstring(sql)
 	stmt: ^b.Stmt
 
-	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), b.Prepare_Flags{}, &stmt, nil) or_return
+	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), flags, &stmt, nil) or_return
 	defer b.finalize(stmt)
 
 	count := b.column_count(stmt)
@@ -108,7 +109,16 @@ query :: proc(
 	return
 }
 
-// TODO: add a polymorphic variant with Prepare_Flags argument
+query :: proc(
+	db: DB,
+	sql: string,
+	bindings: ..Value,
+) -> (
+	results: [dynamic][dynamic]Value,
+	err: Result_Code,
+) {
+	return query_with_flags(db, sql, Prepare_Flags{}, ..bindings)
+}
 
 @(private)
 dynu8_from_str :: proc(str: string) -> [dynamic]u8 {
