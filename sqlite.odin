@@ -37,6 +37,7 @@ close :: proc(db: DB) -> Result_Code {
 	return b.close(db._db)
 }
 
+@(require_results)
 query_with_flags :: proc(
 	db: DB,
 	sql: string,
@@ -111,6 +112,7 @@ query_with_flags :: proc(
 	return
 }
 
+@(require_results)
 query :: proc(
 	db: DB,
 	sql: string,
