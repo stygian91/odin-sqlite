@@ -28,6 +28,7 @@ Value :: union #no_nil {
 open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result_Code) {
 	db := DB{}
 	uri_cstr := strings.clone_to_cstring(uri)
+	defer delete(uri_cstr)
 	res := b.open_v2(uri_cstr, &db._db, flags, nil)
 	return db, res
 }
@@ -46,6 +47,7 @@ query_with_flags :: proc(
 	err: Result_Code,
 ) {
 	cmd := transmute([^]u8)strings.clone_to_cstring(sql)
+	defer free(cmd)
 	stmt: ^b.Stmt
 
 	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), flags, &stmt, nil) or_return
@@ -118,6 +120,23 @@ query :: proc(
 	err: Result_Code,
 ) {
 	return query_with_flags(db, sql, Prepare_Flags{}, ..bindings)
+}
+
+free_results :: proc(results: [dynamic][dynamic]Value) {
+	for res in results {
+		for el in res {
+			#partial switch e in el {
+			case string:
+				delete(e)
+			case [dynamic]u8:
+				delete(e)
+			}
+		}
+
+		delete(res)
+	}
+
+	delete(results)
 }
 
 @(private)
