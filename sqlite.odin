@@ -17,11 +17,11 @@ DEFAULT_OPEN_FLAGS :: Open_Flags{.CREATE, .URI, .READWRITE, .WAL}
 Null :: distinct struct {}
 
 Value :: union #no_nil {
+	Null,
 	i64,
 	f64,
 	string,
 	[dynamic]u8,
-	Null,
 }
 
 @(require_results)
