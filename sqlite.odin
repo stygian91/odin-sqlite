@@ -8,6 +8,7 @@ DB :: struct {
 	_db: ^b.Sqlite3,
 }
 
+Stmt :: b.Stmt
 Open_Flags :: b.Open_Flags
 Prepare_Flags :: b.Prepare_Flags
 Result_Code :: b.Result_Code
@@ -24,6 +25,11 @@ Value :: union #no_nil {
 	[dynamic]u8,
 }
 
+Lifetime :: enum uintptr {
+	Static    = b.STATIC,
+	Transient = b.TRANSIENT,
+}
+
 @(require_results)
 open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result_Code) {
 	db := DB{}
@@ -38,10 +44,9 @@ close :: proc(db: DB) -> Result_Code {
 }
 
 @(require_results)
-query_with_flags :: proc(
+query :: proc(
 	db: DB,
 	sql: string,
-	flags: Prepare_Flags,
 	bindings: ..Value,
 ) -> (
 	results: [dynamic][dynamic]Value,
@@ -49,29 +54,44 @@ query_with_flags :: proc(
 ) {
 	cmd := transmute([^]u8)strings.clone_to_cstring(sql)
 	defer free(cmd)
-	stmt: ^b.Stmt
 
-	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), flags, &stmt, nil) or_return
+	stmt: ^b.Stmt
+	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), Prepare_Flags{}, &stmt, nil) or_return
 	defer b.finalize(stmt)
 
-	count := b.column_count(stmt)
+	bind_parameters(stmt, .Static, ..bindings) or_return
+
+	return fetch_results(stmt)
+}
+
+@(require_results)
+bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (err: Result_Code) {
+	lifetime := transmute(uintptr)lifetime
 
 	for binding, i in bindings {
+		idx := c.int(i + 1)
+
 		switch _bind in binding {
 		case i64:
-			b.bind_int64(stmt, c.int(i + 1), _bind) or_return
+			b.bind_int64(stmt, idx, _bind) or_return
 		case f64:
-			b.bind_double(stmt, c.int(i + 1), c.double(_bind)) or_return
+			b.bind_double(stmt, idx, c.double(_bind)) or_return
 		case string:
 			str := transmute([^]u8)strings.clone_to_cstring(_bind)
-			b.bind_text(stmt, c.int(i + 1), str, c.int(len(_bind)), b.STATIC) or_return
+			b.bind_text(stmt, idx, str, c.int(len(_bind)), lifetime) or_return
 		case [dynamic]u8:
 			first := raw_data(_bind)
-			b.bind_blob(stmt, c.int(i + 1), first, i32(len(_bind)), b.STATIC) or_return
+			b.bind_blob(stmt, idx, first, i32(len(_bind)), lifetime) or_return
 		case Null:
-			b.bind_null(stmt, c.int(i + 1)) or_return
+			b.bind_null(stmt, idx) or_return
 		}
 	}
+
+	return .OK
+}
+
+fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
+	count := b.column_count(stmt)
 
 	for {
 		step_res := b.step(stmt)
@@ -110,18 +130,6 @@ query_with_flags :: proc(
 	}
 
 	return
-}
-
-@(require_results)
-query :: proc(
-	db: DB,
-	sql: string,
-	bindings: ..Value,
-) -> (
-	results: [dynamic][dynamic]Value,
-	err: Result_Code,
-) {
-	return query_with_flags(db, sql, Prepare_Flags{}, ..bindings)
 }
 
 free_results :: proc(results: [dynamic][dynamic]Value) {

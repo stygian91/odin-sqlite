@@ -81,6 +81,11 @@ Datatype :: enum {
 STATIC :: uintptr(0)
 TRANSIENT :: ~uintptr(0)
 
+Binding_Lifetime :: enum uintptr {
+	Static    = uintptr(0),
+	Transient = ~uintptr(0),
+}
+
 Trace_Flag :: enum {
 	STMT,
 	PROFILE,
