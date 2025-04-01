@@ -30,6 +30,8 @@ Lifetime :: enum uintptr {
 	Transient = b.TRANSIENT,
 }
 
+Exec_Callback_Proc :: #type proc(row_idx: int, col_idx: int, col_name: string, value: Value)
+
 @(require_results)
 open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result_Code) {
 	db := DB{}
@@ -44,7 +46,7 @@ close :: proc(db: DB) -> Result_Code {
 }
 
 @(require_results)
-query :: proc(
+exec_fetch :: proc(
 	db: DB,
 	sql: string,
 	bindings: ..Value,
@@ -62,6 +64,27 @@ query :: proc(
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
 	return fetch_results(stmt)
+}
+
+@(require_results)
+exec_callback :: proc(
+	db: DB,
+	sql: string,
+	cb: Exec_Callback_Proc,
+	bindings: ..Value,
+) -> (
+	err: Result_Code,
+) {
+	cmd := transmute([^]u8)strings.clone_to_cstring(sql)
+	defer free(cmd)
+
+	stmt: ^b.Stmt
+	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), Prepare_Flags{}, &stmt, nil) or_return
+	defer b.finalize(stmt)
+
+	bind_parameters(stmt, .Static, ..bindings) or_return
+
+	return loop_results(stmt, cb)
 }
 
 @(require_results)
@@ -90,6 +113,7 @@ bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (
 	return .OK
 }
 
+@(require_results)
 fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
 	count := b.column_count(stmt)
 
@@ -130,6 +154,50 @@ fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Re
 	}
 
 	return
+}
+
+loop_results :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
+	count := b.column_count(stmt)
+	row_idx := 0
+
+	for {
+		step_res := b.step(stmt)
+
+		if step_res == .DONE {
+			return
+		} else if step_res != .ROW {
+			return step_res
+		}
+
+		for i: c.int = 0; i < count; i += 1 {
+			ctype := b.column_type(stmt, i)
+			cname := string(b.column_name(stmt, i))
+
+			switch (ctype) {
+			case .Text:
+				sb: strings.Builder
+				strings.write_string(&sb, string(b.column_text(stmt, i)))
+				val := strings.to_string(sb)
+				defer delete(val)
+				cb(row_idx, int(i), cname, val)
+			case .Blob:
+				size := b.column_bytes(stmt, i)
+				ptr_byte := b.column_blob(stmt, i)
+				str := strings.string_from_ptr(ptr_byte, int(size))
+				val := dynu8_from_str(str)
+				defer delete(val)
+				cb(row_idx, int(i), cname, val)
+			case .Float:
+				cb(row_idx, int(i), cname, f64(b.column_double(stmt, i)))
+			case .Integer:
+				cb(row_idx, int(i), cname, i64(b.column_int64(stmt, i)))
+			case .Null:
+				cb(row_idx, int(i), cname, Null{})
+			}
+		}
+
+		row_idx += 1
+	}
 }
 
 free_results :: proc(results: [dynamic][dynamic]Value) {
