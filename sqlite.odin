@@ -106,22 +106,22 @@ fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Re
 		for i: c.int = 0; i < count; i += 1 {
 			ctype := b.column_type(stmt, i)
 			switch (ctype) {
-			case .TEXT:
+			case .Text:
 				sb: strings.Builder
 				strings.write_string(&sb, string(b.column_text(stmt, i)))
 				val := strings.to_string(sb)
 				append(&row, val)
-			case .BLOB:
+			case .Blob:
 				size := b.column_bytes(stmt, i)
 				ptr_byte := b.column_blob(stmt, i)
 				str := strings.string_from_ptr(ptr_byte, int(size))
 				append_elem(&row, dynu8_from_str(str))
-			case .FLOAT:
+			case .Float:
 				append(&row, f64(b.column_double(stmt, i)))
-			case .INTEGER:
+			case .Integer:
 				val := i64(b.column_int64(stmt, i))
 				append(&row, val)
-			case .NULL:
+			case .Null:
 				append(&row, Null{})
 			}
 		}
