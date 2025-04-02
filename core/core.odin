@@ -29,6 +29,8 @@ foreign sqlite {
 	exec :: proc(db: ^Sqlite3, sql: cstring, call: Exec_Callback, arg: rawptr, errmsg: [^]c.char) -> Result_Code ---
 
 	last_insert_rowid :: proc(db: ^Sqlite3) -> i64 ---
+	changes :: proc(db: ^Sqlite3) -> c.int ---
+	total_changes :: proc(db: ^Sqlite3) -> c.int ---
 
 	column_count :: proc(stmt: ^Stmt) -> c.int ---
 

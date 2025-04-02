@@ -94,17 +94,17 @@ bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (
 	for binding, i in bindings {
 		idx := c.int(i + 1)
 
-		switch _bind in binding {
+		switch bind in binding {
 		case i64:
-			b.bind_int64(stmt, idx, _bind) or_return
+			b.bind_int64(stmt, idx, bind) or_return
 		case f64:
-			b.bind_double(stmt, idx, c.double(_bind)) or_return
+			b.bind_double(stmt, idx, c.double(bind)) or_return
 		case string:
-			str := transmute([^]u8)strings.clone_to_cstring(_bind)
-			b.bind_text(stmt, idx, str, c.int(len(_bind)), lifetime) or_return
+			str := transmute([^]u8)strings.clone_to_cstring(bind)
+			b.bind_text(stmt, idx, str, c.int(len(bind)), lifetime) or_return
 		case [dynamic]u8:
-			first := raw_data(_bind)
-			b.bind_blob(stmt, idx, first, i32(len(_bind)), lifetime) or_return
+			first := raw_data(bind)
+			b.bind_blob(stmt, idx, first, c.int(len(bind)), lifetime) or_return
 		case Null:
 			b.bind_null(stmt, idx) or_return
 		}
