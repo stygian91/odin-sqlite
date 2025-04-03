@@ -85,26 +85,6 @@ exec_fetch :: proc(
 	return stmt_results_fetch(stmt)
 }
 
-enable_wal :: proc(db: DB) -> bool {
-	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
-	defer results_free(res)
-
-	if exec_err != .OK {
-		return false
-	}
-
-	if len(res) == 0 || len(res[0]) == 0 {
-		return false
-	}
-
-	#partial switch mode in res[0][0] {
-	case string:
-		return mode == "wal"
-	case:
-		return false
-	}
-}
-
 @(require_results)
 exec_callback :: proc(
 	db: DB,
@@ -250,6 +230,26 @@ stmt_results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_C
 		}
 
 		row_idx += 1
+	}
+}
+
+enable_wal :: proc(db: DB) -> bool {
+	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
+	defer results_free(res)
+
+	if exec_err != .OK {
+		return false
+	}
+
+	if len(res) == 0 || len(res[0]) == 0 {
+		return false
+	}
+
+	#partial switch mode in res[0][0] {
+	case string:
+		return mode == "wal"
+	case:
+		return false
 	}
 }
 
