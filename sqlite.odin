@@ -38,6 +38,11 @@ open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result
 	uri_cstr := strings.clone_to_cstring(uri)
 	defer delete(uri_cstr)
 	res := b.open_v2(uri_cstr, &db._db, flags, nil)
+
+	if res == .OK {
+		enable_wal(db)
+	}
+
 	return db, res
 }
 
