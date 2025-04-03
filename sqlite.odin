@@ -51,6 +51,20 @@ close :: proc(db: DB) -> Result_Code {
 }
 
 @(require_results)
+exec_discard :: proc(db: DB, sql: string, bindings: ..Value) -> (err: Result_Code) {
+	cmd := transmute([^]u8)strings.clone_to_cstring(sql)
+	defer free(cmd)
+
+	stmt: ^b.Stmt
+	b.prepare_v3(db._db, cmd, cast(c.int)len(sql), Prepare_Flags{}, &stmt, nil) or_return
+	defer b.finalize(stmt)
+
+	bind_parameters(stmt, .Static, ..bindings) or_return
+
+	return resuts_discard(stmt)
+}
+
+@(require_results)
 exec_fetch :: proc(
 	db: DB,
 	sql: string,
@@ -68,7 +82,7 @@ exec_fetch :: proc(
 
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
-	return fetch_results(stmt)
+	return results_fetch(stmt)
 }
 
 enable_wal :: proc(db: DB) -> bool {
@@ -109,7 +123,7 @@ exec_callback :: proc(
 
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
-	return loop_results(stmt, cb)
+	return results_loop(stmt, cb)
 }
 
 @(require_results)
@@ -139,7 +153,7 @@ bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (
 }
 
 @(require_results)
-fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
+results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
 	count := b.column_count(stmt)
 
 	for {
@@ -181,7 +195,21 @@ fetch_results :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Re
 	return
 }
 
-loop_results :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
+resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
+	for {
+		step_res := b.step(stmt)
+
+		if step_res == .DONE {
+			break
+		} else if step_res != .ROW {
+			return step_res
+		}
+	}
+
+	return .OK
+}
+
+results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
 	count := b.column_count(stmt)
 	row_idx := 0
 
