@@ -61,7 +61,7 @@ exec_discard :: proc(db: DB, sql: string, bindings: ..Value) -> (err: Result_Cod
 
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
-	return resuts_discard(stmt)
+	return stmt_resuts_discard(stmt)
 }
 
 @(require_results)
@@ -82,12 +82,12 @@ exec_fetch :: proc(
 
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
-	return results_fetch(stmt)
+	return stmt_results_fetch(stmt)
 }
 
 enable_wal :: proc(db: DB) -> bool {
 	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
-	defer free_results(res)
+	defer results_free(res)
 
 	if exec_err != .OK {
 		return false
@@ -123,7 +123,7 @@ exec_callback :: proc(
 
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
-	return results_loop(stmt, cb)
+	return stmt_results_loop(stmt, cb)
 }
 
 @(require_results)
@@ -153,7 +153,7 @@ bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (
 }
 
 @(require_results)
-results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
+stmt_results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Result_Code) {
 	count := b.column_count(stmt)
 
 	for {
@@ -195,7 +195,7 @@ results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, err: Re
 	return
 }
 
-resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
+stmt_resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
 	for {
 		step_res := b.step(stmt)
 
@@ -209,7 +209,7 @@ resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
 	return .OK
 }
 
-results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
+stmt_results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
 	count := b.column_count(stmt)
 	row_idx := 0
 
@@ -253,7 +253,7 @@ results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) 
 	}
 }
 
-free_results :: proc(results: [dynamic][dynamic]Value) {
+results_free :: proc(results: [dynamic][dynamic]Value) {
 	for res in results {
 		for el in res {
 			#partial switch e in el {
