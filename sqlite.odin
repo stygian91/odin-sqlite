@@ -13,7 +13,7 @@ Open_Flags :: b.Open_Flags
 Prepare_Flags :: b.Prepare_Flags
 Result_Code :: b.Result_Code
 
-DEFAULT_OPEN_FLAGS :: Open_Flags{.CREATE, .URI, .READWRITE, .WAL}
+DEFAULT_OPEN_FLAGS :: Open_Flags{.CREATE, .URI, .READWRITE}
 
 Null :: distinct struct {}
 
@@ -64,6 +64,26 @@ exec_fetch :: proc(
 	bind_parameters(stmt, .Static, ..bindings) or_return
 
 	return fetch_results(stmt)
+}
+
+enable_wal :: proc(db: DB) -> bool {
+	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
+	defer free_results(res)
+
+	if exec_err != .OK {
+		return false
+	}
+
+	if len(res) == 0 || len(res[0]) == 0 {
+		return false
+	}
+
+	#partial switch mode in res[0][0] {
+	case string:
+		return mode == "wal"
+	case:
+		return false
+	}
 }
 
 @(require_results)
