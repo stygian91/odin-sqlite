@@ -163,6 +163,7 @@ stmt_results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, er
 	return
 }
 
+@(require_results)
 stmt_resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
 	for {
 		step_res := b.step(stmt)
@@ -177,6 +178,7 @@ stmt_resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
 	return .OK
 }
 
+@(require_results)
 stmt_results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_Code) {
 	count := b.column_count(stmt)
 	row_idx := 0
@@ -227,6 +229,12 @@ stmt_create :: proc(db: DB, sql: string, flags: Prepare_Flags) -> (stmt: ^Stmt, 
 	err = b.prepare_v3(db._db, cmd, cast(c.int)len(sql), flags, &stmt, nil)
 	return
 }
+
+stmt_reset :: b.reset
+
+stmt_clear_bindings :: b.clear_bindings
+
+stmt_finalize :: b.finalize
 
 enable_wal :: proc(db: DB) -> bool {
 	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
