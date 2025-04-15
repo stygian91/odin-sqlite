@@ -3,12 +3,7 @@ package sqlite3_core
 import "core:c"
 import "core:os"
 
-// when os.OS == "windows" do foreign import sqlite { "sqlite3.lib" }
-// do we need to import pthread and dl? 
-// when ODIN_OS == .Linux do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
-// when ODIN_OS == .Darwin do foreign import sqlite { "sqlite3.a", "system:pthread", "system:dl" }
-
-when ODIN_OS == .Linux do foreign import sqlite {"system:libsqlite3.a", "system:pthread"}
+when ODIN_OS == .Linux do foreign import sqlite {"system:sqlite3", "system:pthread"}
 when ODIN_OS == .Darwin do foreign import sqlite {"system:sqlite3", "system:pthread"}
 
 @(default_calling_convention = "c", link_prefix = "sqlite3_")
