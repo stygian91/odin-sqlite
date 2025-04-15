@@ -65,6 +65,9 @@ foreign sqlite {
 	expanded_sql :: proc(stmt: ^Stmt) -> cstring ---
 
 	threadsafe :: proc () -> c.int ---
+	libversion :: proc () -> cstring ---
+	libversion_number :: proc () -> c.int ---
+	sourceid :: proc () -> cstring ---
 }
 
 Exec_Callback :: proc "c" (
