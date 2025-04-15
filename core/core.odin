@@ -22,7 +22,7 @@ foreign sqlite {
 
 	step :: proc(stmt: ^Stmt) -> Result_Code ---
 	finalize :: proc(stmt: ^Stmt) -> Result_Code ---
-	exec :: proc(db: ^Sqlite3, sql: cstring, call: Exec_Callback, arg: rawptr, errmsg: [^]c.char) -> Result_Code ---
+	exec :: proc(db: ^Sqlite3, sql: cstring, call: Exec_Callback, arg: rawptr, errmsg: ^cstring) -> Result_Code ---
 
 	last_insert_rowid :: proc(db: ^Sqlite3) -> i64 ---
 	changes :: proc(db: ^Sqlite3) -> c.int ---
