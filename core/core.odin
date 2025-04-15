@@ -29,7 +29,6 @@ foreign sqlite {
 	total_changes :: proc(db: ^Sqlite3) -> c.int ---
 
 	column_count :: proc(stmt: ^Stmt) -> c.int ---
-
 	column_name :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
 	column_type :: proc(stmt: ^Stmt, i_col: c.int) -> Datatype ---
 	column_decltype :: proc(stmt: ^Stmt, i_col: c.int) -> cstring ---
@@ -59,6 +58,12 @@ foreign sqlite {
 	bind_text :: proc(stmt: ^Stmt, index: c.int, first: ^c.char, byte_count: c.int, lifetime: uintptr) -> Result_Code --- // lifetime: proc "c" (data: rawptr),
 	bind_blob :: proc(stmt: ^Stmt, index: c.int, first: ^byte, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 
+	stmt_readonly :: proc(stmt: ^Stmt) -> c.int ---
+	stmt_isexplain :: proc(stmt: ^Stmt) -> c.int ---
+	stmt_explain :: proc(stmt: ^Stmt, mode: Explain_Mode) -> Result_Code ---
+	stmt_status :: proc (stmt: ^Stmt, counter_type: Stmt_Counter_Type, should_reset: c.int) -> c.int ---
+	stmt_busy :: proc (stmt: ^Stmt) -> c.int ---
+
 	trace_v2 :: proc(db: ^Sqlite3, mask: Trace_Flags, call: proc "c" (mask: Trace_Flag, x, y, z: rawptr) -> c.int, ctx: rawptr) -> Result_Code ---
 
 	sql :: proc(stmt: ^Stmt) -> cstring ---
@@ -68,6 +73,8 @@ foreign sqlite {
 	libversion :: proc () -> cstring ---
 	libversion_number :: proc () -> c.int ---
 	sourceid :: proc () -> cstring ---
+
+	limit :: proc (db: ^Sqlite3, category: c.int, new_val: c.int) -> c.int ---
 }
 
 Exec_Callback :: proc "c" (
@@ -137,6 +144,24 @@ Open_Flag :: enum {
 }
 
 Open_Flags :: bit_set[Open_Flag]
+
+Explain_Mode :: enum c.int {
+	Normal = 0,
+	Explain = 1,
+	Explain_Query_Plan = 2,
+}
+
+Stmt_Counter_Type :: enum c.int {
+	FULLSCAN_STEP = 1,
+	SORT = 2,
+	AUTOINDEX = 3,
+	VM_STEP = 4,
+	REPREPARE = 5,
+	RUN = 6,
+	FILTER_MISS = 7,
+	FILTER_HIT = 8,
+	MEMUSED = 99,
+}
 
 Stmt :: struct {}
 
