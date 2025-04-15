@@ -48,6 +48,10 @@ foreign sqlite {
 	reset :: proc(stmt: ^Stmt) -> Result_Code ---
 	clear_bindings :: proc(stmt: ^Stmt) -> Result_Code ---
 
+	bind_parameter_count :: proc (stmt: ^Stmt) -> c.int ---
+	bind_parameter_index :: proc (stmt: ^Stmt, name: cstring) -> c.int ---
+	bind_parameter_name :: proc (stmt: ^Stmt, n: c.int) -> cstring ---
+
 	bind_int :: proc(stmt: ^Stmt, index: c.int, value: c.int) -> Result_Code ---
 	bind_null :: proc(stmt: ^Stmt, index: c.int) -> Result_Code ---
 	bind_int64 :: proc(stmt: ^Stmt, index: c.int, value: i64) -> Result_Code ---
