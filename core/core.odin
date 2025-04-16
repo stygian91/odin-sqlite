@@ -69,7 +69,7 @@ foreign sqlite {
 	sql :: proc(stmt: ^Stmt) -> cstring ---
 	expanded_sql :: proc(stmt: ^Stmt) -> cstring ---
 
-	threadsafe :: proc () -> c.int ---
+	threadsafe :: proc () -> Threadsafe_Type ---
 	libversion :: proc () -> cstring ---
 	libversion_number :: proc () -> c.int ---
 	sourceid :: proc () -> cstring ---
@@ -161,6 +161,12 @@ Stmt_Counter_Type :: enum c.int {
 	FILTER_MISS = 7,
 	FILTER_HIT = 8,
 	MEMUSED = 99,
+}
+
+Threadsafe_Type :: enum c.int {
+	Single = 0,
+	Multi = 1,
+	Serialized = 2,
 }
 
 Stmt :: struct {}
