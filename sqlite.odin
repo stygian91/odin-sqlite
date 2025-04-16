@@ -13,7 +13,7 @@ Open_Flags :: b.Open_Flags
 Prepare_Flags :: b.Prepare_Flags
 Result_Code :: b.Result_Code
 
-DEFAULT_OPEN_FLAGS :: Open_Flags{.CREATE, .URI, .READWRITE}
+DEFAULT_OPEN_FLAGS :: Open_Flags{.Create, .Uri, .Readwrite}
 
 Null :: distinct struct {}
 
@@ -26,8 +26,8 @@ Value :: union #no_nil {
 }
 
 Lifetime :: enum uintptr {
-	Static    = b.STATIC,
-	Transient = b.TRANSIENT,
+	Static    = b.Static,
+	Transient = b.Transient,
 }
 
 Exec_Callback_Proc :: #type proc(row_idx: int, col_idx: int, col_name: string, value: Value)
@@ -39,7 +39,7 @@ open :: proc(uri: string, flags: Open_Flags = DEFAULT_OPEN_FLAGS) -> (DB, Result
 	defer delete(uri_cstr)
 	res := b.open_v2(uri_cstr, &db._db, flags, nil)
 
-	if res == .OK {
+	if res == .Ok {
 		enable_wal(db)
 	}
 
@@ -117,7 +117,7 @@ bind_parameters :: proc(stmt: ^Stmt, lifetime: Lifetime, bindings: ..Value) -> (
 		}
 	}
 
-	return .OK
+	return .Ok
 }
 
 @(require_results)
@@ -127,9 +127,9 @@ stmt_results_fetch :: proc(stmt: ^Stmt) -> (results: [dynamic][dynamic]Value, er
 	for {
 		step_res := b.step(stmt)
 
-		if step_res == .DONE {
+		if step_res == .Done {
 			break
-		} else if step_res != .ROW {
+		} else if step_res != .Row {
 			return results, step_res
 		}
 
@@ -168,14 +168,14 @@ stmt_resuts_discard :: proc(stmt: ^Stmt) -> (err: Result_Code) {
 	for {
 		step_res := b.step(stmt)
 
-		if step_res == .DONE {
+		if step_res == .Done {
 			break
-		} else if step_res != .ROW {
+		} else if step_res != .Row {
 			return step_res
 		}
 	}
 
-	return .OK
+	return .Ok
 }
 
 @(require_results)
@@ -186,9 +186,9 @@ stmt_results_loop :: proc(stmt: ^Stmt, cb: Exec_Callback_Proc) -> (err: Result_C
 	for {
 		step_res := b.step(stmt)
 
-		if step_res == .DONE {
+		if step_res == .Done {
 			return
-		} else if step_res != .ROW {
+		} else if step_res != .Row {
 			return step_res
 		}
 
@@ -240,7 +240,7 @@ enable_wal :: proc(db: DB) -> bool {
 	res, exec_err := exec_fetch(db, "PRAGMA journal_mode=WAL;")
 	defer results_free(res)
 
-	if exec_err != .OK {
+	if exec_err != .Ok {
 		return false
 	}
 

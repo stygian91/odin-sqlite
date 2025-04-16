@@ -55,7 +55,7 @@ foreign sqlite {
 	bind_null :: proc(stmt: ^Stmt, index: c.int) -> Result_Code ---
 	bind_int64 :: proc(stmt: ^Stmt, index: c.int, value: i64) -> Result_Code ---
 	bind_double :: proc(stmt: ^Stmt, index: c.int, value: c.double) -> Result_Code ---
-	bind_text :: proc(stmt: ^Stmt, index: c.int, first: ^c.char, byte_count: c.int, lifetime: uintptr) -> Result_Code --- // lifetime: proc "c" (data: rawptr),
+	bind_text :: proc(stmt: ^Stmt, index: c.int, first: ^c.char, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 	bind_blob :: proc(stmt: ^Stmt, index: c.int, first: ^byte, byte_count: c.int, lifetime: uintptr) -> Result_Code ---
 
 	stmt_readonly :: proc(stmt: ^Stmt) -> c.int ---
@@ -73,8 +73,8 @@ foreign sqlite {
 	libversion :: proc () -> cstring ---
 	libversion_number :: proc () -> c.int ---
 	sourceid :: proc () -> cstring ---
-
-	limit :: proc (db: ^Sqlite3, category: c.int, new_val: c.int) -> c.int ---
+	limit :: proc (db: ^Sqlite3, category: Limit_Type, new_val: c.int) -> c.int ---
+	db_config :: proc (db: ^Sqlite3, op: Db_Config_Type, #c_vararg args: ..any) -> Result_Code ---
 }
 
 Exec_Callback :: proc "c" (
@@ -92,55 +92,50 @@ Datatype :: enum {
 	Null    = 5,
 }
 
-STATIC :: uintptr(0)
-TRANSIENT :: ~uintptr(0)
-
-Binding_Lifetime :: enum uintptr {
-	Static    = uintptr(0),
-	Transient = ~uintptr(0),
-}
+Static :: uintptr(0)
+Transient :: ~uintptr(0)
 
 Trace_Flag :: enum {
-	STMT,
-	PROFILE,
-	ROW,
-	CLOSE,
+	Stmt,
+	Profile,
+	Row,
+	Close,
 }
 
 Trace_Flags :: bit_set[Trace_Flag]
 
 Prepare_Flag :: enum {
-	PERSISTENT,
-	NORMALIZE,
-	NO_VTAB,
-	DONT_LOG,
+	Persistent,
+	Normalize,
+	No_Vtab,
+	Dont_Log,
 }
 
 Prepare_Flags :: bit_set[Prepare_Flag]
 
 Open_Flag :: enum {
-	READONLY, // Ok for sqlite3_open_v2()
-	READWRITE, // Ok for sqlite3_open_v2()
-	CREATE, // Ok for sqlite3_open_v2()
-	DELETEONCLOSE, // VFS only
-	EXCLUSIVE, // VFS only
-	AUTOPROXY, // VFS only
-	URI, // Ok for sqlite3_open_v2()
-	MEMORY, // Ok for sqlite3_open_v2()
-	MAIN_DB, // VFS only
-	TEMP_DB, // VFS only
-	TRANSIENT_DB, // VFS only
-	MAIN_JOURNAL, // VFS only
-	TEMP_JOURNAL, // VFS only
-	SUBJOURNAL, // VFS only
-	SUPER_JOURNAL, // VFS only
-	NOMUTEX, // Ok for sqlite3_open_v2()
-	FULLMUTEX, // Ok for sqlite3_open_v2()
-	SHAREDCACHE, // Ok for sqlite3_open_v2()
-	PRIVATECACHE, // Ok for sqlite3_open_v2()
-	WAL, // VFS only
-	NOFOLLOW, // Ok for sqlite3_open_v2()
-	EXRESCODE, // Extended result codes
+	Readonly, // Ok for sqlite3_open_v2()
+	Readwrite, // Ok for sqlite3_open_v2()
+	Create, // Ok for sqlite3_open_v2()
+	Deleteonclose, // VFS only
+	Exclusive, // VFS only
+	Autoproxy, // VFS only
+	Uri, // Ok for sqlite3_open_v2()
+	Memory, // Ok for sqlite3_open_v2()
+	Main_Db, // VFS only
+	Temp_Db, // VFS only
+	Transient_Db, // VFS only
+	Main_Journal, // VFS only
+	Temp_Journal, // VFS only
+	Subjournal, // VFS only
+	Super_Journal, // VFS only
+	Nomutex, // Ok for sqlite3_open_v2()
+	Fullmutex, // Ok for sqlite3_open_v2()
+	Sharedcache, // Ok for sqlite3_open_v2()
+	Privatecache, // Ok for sqlite3_open_v2()
+	Wal, // VFS only
+	Nofollow, // Ok for sqlite3_open_v2()
+	Exrescode, // Extended result codes
 }
 
 Open_Flags :: bit_set[Open_Flag]
@@ -152,21 +147,58 @@ Explain_Mode :: enum c.int {
 }
 
 Stmt_Counter_Type :: enum c.int {
-	FULLSCAN_STEP = 1,
-	SORT = 2,
-	AUTOINDEX = 3,
-	VM_STEP = 4,
-	REPREPARE = 5,
-	RUN = 6,
-	FILTER_MISS = 7,
-	FILTER_HIT = 8,
-	MEMUSED = 99,
+	Fullscan_Step = 1,
+	Sort = 2,
+	Autoindex = 3,
+	Vm_Step = 4,
+	Reprepare = 5,
+	Run = 6,
+	Filter_Miss = 7,
+	Filter_Hit = 8,
+	Memused = 99,
 }
 
 Threadsafe_Type :: enum c.int {
 	Single = 0,
 	Multi = 1,
 	Serialized = 2,
+}
+
+Limit_Type :: enum c.int {
+	Length = 0,
+	Sql_Length = 1,
+	Column = 2,
+	Expr_Depth = 3,
+	Compound_Select = 4,
+	Vdbe_Op = 5,
+	Function_Arg = 6,
+	Attached = 7,
+	Like_Pattern_Length = 8,
+	Variable_Number = 9,
+	Trigger_Depth = 10,
+	Worker_Threads = 11,
+}
+
+Db_Config_Type :: enum c.int {
+	Main_Db_Name = 1000,
+	Lookaside = 1001,
+	Enable_Fkey = 1002,
+	Enable_Trigger = 1003,
+	Enable_Fts3_Tokenizer = 1004,
+	Enable_Load_Extension = 1005,
+	No_Ckpt_On_Close = 1006,
+	Enable_Qpsg = 1007,
+	Trigger_eqp = 1008,
+	Reset_Database = 1009,
+	Defensive = 1010,
+	Writable_Schema = 1011,
+	Legacy_Alter_Table = 1012,
+	Dqs_Dml = 1013,
+	Dqs_Ddl = 1014,
+	Enable_View = 1015,
+	Legacy_File_Format = 1016,
+	Trusted_Schema = 1017,
+	Max = 1017,
 }
 
 Stmt :: struct {}
@@ -258,35 +290,35 @@ Legacy_Result_Code :: enum c.int {
 }
 
 Result_Code :: enum c.int {
-	OK         = 0, // Successful result
-	ERROR      = 1, // Generic error
-	INTERNAL   = 2, // Internal logic error in SQLite
-	PERM       = 3, // Access permission denied
-	ABORT      = 4, // Callback routine requested an abort
-	BUSY       = 5, // The database file is locked
-	LOCKED     = 6, // A table in the database is locked
-	NOMEM      = 7, // A malloc() failed
-	READONLY   = 8, // Attempt to write a readonly database
-	INTERRUPT  = 9, // Operation terminated by sqlite3_interrupt(
-	IOERR      = 10, // Some kind of disk I/O error occurred
-	CORRUPT    = 11, // The database disk image is malformed
-	NOTFOUND   = 12, // Unknown opcode in sqlite3_file_control()
-	FULL       = 13, // Insertion failed because database is full
-	CANTOPEN   = 14, // Unable to open the database file
-	PROTOCOL   = 15, // Database lock protocol error
-	EMPTY      = 16, // Internal use only
-	SCHEMA     = 17, // The database schema changed
-	TOOBIG     = 18, // String or BLOB exceeds size limit
-	CONSTRAINT = 19, // Abort due to constraint violation
-	MISMATCH   = 20, // Data type mismatch
-	MISUSE     = 21, // Library used incorrectly
-	NOLFS      = 22, // Uses OS features not supported on host
-	AUTH       = 23, // Authorization denied
-	FORMAT     = 24, // Not used
-	RANGE      = 25, // 2nd parameter to sqlite3_bind out of range
-	NOTADB     = 26, // File opened that is not a database file
-	NOTICE     = 27, // Notifications from sqlite3_log()
-	WARNING    = 28, // Warnings from sqlite3_log()
-	ROW        = 100, // sqlite3_step() has another row ready
-	DONE       = 101, // sqlite3_step() has finished executing
+	Ok         = 0, // Successful result
+	Error      = 1, // Generic error
+	Internal   = 2, // Internal logic error in SQLite
+	Perm       = 3, // Access permission denied
+	Abort      = 4, // Callback routine requested an abort
+	Busy       = 5, // The database file is locked
+	Locked     = 6, // A table in the database is locked
+	Nomem      = 7, // A malloc() failed
+	Readonly   = 8, // Attempt to write a readonly database
+	Interrupt  = 9, // Operation terminated by sqlite3_interrupt(
+	Ioerr      = 10, // Some kind of disk I/O error occurred
+	Corrupt    = 11, // The database disk image is malformed
+	Notfound   = 12, // Unknown opcode in sqlite3_file_control()
+	Full       = 13, // Insertion failed because database is full
+	Cantopen   = 14, // Unable to open the database file
+	Protocol   = 15, // Database lock protocol error
+	Empty      = 16, // Internal use only
+	Schema     = 17, // The database schema changed
+	Toobig     = 18, // String or BLOB exceeds size limit
+	Constraint = 19, // Abort due to constraint violation
+	Mismatch   = 20, // Data type mismatch
+	Misuse     = 21, // Library used incorrectly
+	Nolfs      = 22, // Uses OS features not supported on host
+	Auth       = 23, // Authorization denied
+	Format     = 24, // Not used
+	Range      = 25, // 2nd parameter to sqlite3_bind out of range
+	Notadb     = 26, // File opened that is not a database file
+	Notice     = 27, // Notifications from sqlite3_log()
+	Warning    = 28, // Warnings from sqlite3_log()
+	Row        = 100, // sqlite3_step() has another row ready
+	Done       = 101, // sqlite3_step() has finished executing
 }
